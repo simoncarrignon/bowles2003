@@ -25,7 +25,7 @@ base=baseline=10
 allgroups <- replicate(g,createGroup(N=N),simplify=F)
 t=rep(0,g)
 s=rep(0,g)
-steps=generations=50
+steps=generations=1000
 baseline=10
 inmS=mu_s=.1
 inmT=mu_t=.1
@@ -86,7 +86,7 @@ for( i in  names(insti)){
   testk <- sapply(ks,function(k){
     print(k)
     cl <- makeCluster(10,type="FORK")
-    represults <- parSapply(cl,1:5,function(is){
+    represults <- parSapply(cl,1:10,function(is){
        set.seed(seeds[is])  # Set a unique seed for the i-th worker
        tryCatch(mean(model(allgroups,e=e,m=m,k=k,steps=steps,s=s,t=t,c=c,b=b,baseline=baseline,mu_s=pii[1],mu_t=pii[2])[,1]),error=function(e)return(NA))
     })
@@ -102,7 +102,7 @@ for( i in  names(insti)){
   testk <- sapply(ks,function(k){
   print(k)
   cl <- makeCluster(10,type="FORK")
-    represults <- parSapply(cl,1:5,function(is){
+    represults <- parSapply(cl,1:10,function(is){
        set.seed(seeds[is])  # Set a unique seed for the i-th worker
        tryCatch(mean(run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = pii[1], inmT=pii[2], base = base,generations=generations)[1,]),error=function(e)NA)
     })
