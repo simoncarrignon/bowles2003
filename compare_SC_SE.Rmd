@@ -1,0 +1,130 @@
+---
+title: "Reproduce Bowles et al 2003"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cerulean
+    highlight: tango
+---
+
+We will compare two different version of the model describing in [Bowles et al (2023)](https://www.sciencedirect.com/science/article/pii/S0022519303000602)
+
+```{r}
+source("function.R")
+source("core_model.R")
+source("core_model_SE.R")
+N=20
+g=20
+e=0.001
+m=0.2
+k=0.25
+c=1
+b=2
+base=baseline=10
+
+allgroups <- replicate(g,createGroup(N=N),simplify=F)
+t=rep(0,g)
+s=rep(0,g)
+steps=generations=50
+baseline=10
+inmS=mu_s=.1
+inmT=mu_t=.1
+
+
+resultsSC <- model(allgroups,e=e,m=m,k=k,steps=steps,c=c,b=b,baseline=baseline,mu_s=mu_s,mu_t=mu_t,s=s,t=t,logs=c())
+resultsSE <- run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = inmS, inmT=inmT, base = base,generations=generations)
+
+plot(resultsSC[,1],type="l",lwd=2,col="red",ylim=c(0,1),ylab="q")
+lines(resultsSE[1,],type="l",lwd=2,col="blue")
+plot(resultsSC[,2],type="l",lwd=2,col="red",ylim=c(0,1),ylab="s")
+lines(resultsSE[3,],type="l",lwd=2,col="blue")
+
+resultsSC <- replicate(10,model(allgroups,e=e,m=m,k=k,steps=steps,c=c,b=b,baseline=baseline,mu_s=mu_s,mu_t=mu_t,s=s,t=t,logs=c()))
+resultsSE <- replicate(10,run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = inmS, inmT=inmT, base = base,generations=generations))
+plot(1,1,type="n",xlim=c(0,steps),ylim=c(0,1),ylab="q")
+apply(resultsSC[,1,],2,lines,lwd=1,col="red")
+apply(resultsSE[1,,],2,lines,lwd=1,col="blue")
+
+plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylim="s")
+apply(resultsSC[,3,],2,lines,lwd=1,col="red")
+apply(resultsSE[2,,],2,lines,lwd=1,col="blue")
+
+plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylim="t")
+apply(resultsSC[,2,],2,lines,lwd=1,col="red")
+apply(resultsSE[3,,],2,lines,lwd=1,col="blue")
+``` 
+
+
+```{r}
+k=.01
+resultsSC2 <- replicate(10,model(allgroups,e=e,m=m,k=k,steps=steps,c=c,b=b,baseline=baseline,mu_s=mu_s,mu_t=mu_t,s=s,t=t,logs=c()))
+
+resultsSE2 <- replicate(10,run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = inmS, inmT=inmT, base = base,generations=generations))
+
+plot(1,1,type="n",xlim=c(0,steps),ylim=c(0,1),ylab="q")
+apply(resultsSC2[,1,],2,lines,lwd=1,col="red")
+apply(resultsSE2[1,,],2,lines,lwd=1,col="blue")
+
+plot(1,1,type="n",xlim=c(0,steps),ylim=c(0,1),ylab="s")
+apply(resultsSC2[,3,],2,lines,lwd=1,col="red")
+apply(resultsSE2[2,,],2,lines,lwd=1,col="blue")
+
+plot(1,1,type="n",xlim=c(0,steps),ylim=c(0,1),ylab="t")
+apply(resultsSC2[,2,],2,lines,lwd=1,col="red")
+apply(resultsSE2[3,,],2,lines,lwd=1,col="blue")
+```
+
+```{r}
+library(parallel)
+insti <- list(a=c(.1,.1),b=c(.1,0),c=c(0,.1),d=c(0,0))
+ks <- seq(.01,.5,length.out=6)
+
+seeds <- sample(1:1e6,200)  
+allresSC <- list()
+for( i in  names(insti)){
+  pii <- insti[[i]]
+  testk <- sapply(ks,function(k){
+    print(k)
+    cl <- makeCluster(10,type="FORK")
+    represults <- parSapply(cl,1:5,function(is){
+       set.seed(seeds[is])  # Set a unique seed for the i-th worker
+       tryCatch(mean(model(allgroups,e=e,m=m,k=k,steps=steps,s=s,t=t,c=c,b=b,baseline=baseline,mu_s=pii[1],mu_t=pii[2])[,1]),error=function(e)return(NA))
+    })
+    stopCluster(cl)
+    represults
+  })
+  allresSC[[i]] <- testk
+}
+
+allresSE <- list()
+for( i in  names(insti)){
+  pii <- insti[[i]]
+  testk <- sapply(ks,function(k){
+  print(k)
+  cl <- makeCluster(10,type="FORK")
+    represults <- parSapply(cl,1:5,function(is){
+       set.seed(seeds[is])  # Set a unique seed for the i-th worker
+       tryCatch(mean(run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = pii[1], inmT=pii[2], base = base,generations=generations)[1,]),error=function(e)NA)
+    })
+    stopCluster(cl)
+    represults
+ 
+ })
+  allresSE[[i]] <- testk
+}
+
+ ks <- seq(.01,.5,length.out=10)
+plot(ks,rep(1,length(ks)),ylim=c(0,1),type="n")
+
+allresSC=allres[[1]]
+names(allresSC)=c("both","s","t","none")
+allresSE=allres[[2]]
+names(allresSE)=c("both","s","t","none")
+par(mfrow=c(1,2))
+plot(ks,rep(1,length(ks)),type="n",ylim=c(0,max(unlist(allresSC),na.rm=T)))
+for( i in 1:4) lines(ks,apply(allresSC[[i]],2,mean,na.rm=T),col="orange",lty=i,lwd=3)
+plot(ks,rep(1,length(ks)),type="n",ylim=c(0,max(unlist(allresSE),na.rm=T)))
+for( i in 1:4) lines(ks,apply(allresSE[[i]],2,mean,na.rm=T),col="#008080",lty=i,lwd=3)
+legend("topleft",legend=c("both","s","t","none"),lty=1:4,lwd=2,title="institutions")
+```
+
