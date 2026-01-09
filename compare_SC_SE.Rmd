@@ -9,7 +9,7 @@ output:
 
 We will compare two different version of the model describing in [Bowles et al (2023)](https://www.sciencedirect.com/science/article/pii/S0022519303000602)
 
-```{r}
+```{r oneexample}
 source("function.R")
 source("core_model.R")
 source("core_model_SE.R")
@@ -38,25 +38,37 @@ plot(resultsSC[,1],type="l",lwd=2,col="red",ylim=c(0,1),ylab="q")
 lines(resultsSE[1,],type="l",lwd=2,col="blue")
 plot(resultsSC[,2],type="l",lwd=2,col="red",ylim=c(0,1),ylab="s")
 lines(resultsSE[3,],type="l",lwd=2,col="blue")
+plot(resultsSC[,3],type="l",lwd=2,col="red",ylim=c(0,1),ylab="t")
+lines(resultsSE[2,],type="l",lwd=2,col="blue")
+```
 
+With the same parameter, we now run 10 different simulation to look at the any trend temporal dynamic
+
+
+```{r tenreplica}
 resultsSC <- replicate(10,model(allgroups,e=e,m=m,k=k,steps=steps,c=c,b=b,baseline=baseline,mu_s=mu_s,mu_t=mu_t,s=s,t=t,logs=c()))
 resultsSE <- replicate(10,run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = inmS, inmT=inmT, base = base,generations=generations))
 plot(1,1,type="n",xlim=c(0,steps),ylim=c(0,1),ylab="q")
 apply(resultsSC[,1,],2,lines,lwd=1,col="red")
 apply(resultsSE[1,,],2,lines,lwd=1,col="blue")
 
-plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylim="s")
+plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylab="s")
 apply(resultsSC[,3,],2,lines,lwd=1,col="red")
 apply(resultsSE[2,,],2,lines,lwd=1,col="blue")
 
-plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylim="t")
+plot(1,1,type="n",xlim=c(0,1000),ylim=c(0,1),ylab="t")
 apply(resultsSC[,2,],2,lines,lwd=1,col="red")
 apply(resultsSE[3,,],2,lines,lwd=1,col="blue")
 ``` 
 
+We can see that the mutation for institution is different not much pattern
+
+
+
+Let's try with a lower migration rate:
 
 ```{r}
-k=.01
+m=.1
 resultsSC2 <- replicate(10,model(allgroups,e=e,m=m,k=k,steps=steps,c=c,b=b,baseline=baseline,mu_s=mu_s,mu_t=mu_t,s=s,t=t,logs=c()))
 
 resultsSE2 <- replicate(10,run_simulation(group_size = N, ngroups = g, b = b, c = c, e = e, m = m, k = k, inmS = inmS, inmT=inmT, base = base,generations=generations))
@@ -74,9 +86,14 @@ apply(resultsSC2[,2,],2,lines,lwd=1,col="red")
 apply(resultsSE2[3,,],2,lines,lwd=1,col="blue")
 ```
 
+We know explore
+
 ```{r}
+m=0.2 #put back default m
 library(parallel)
-insti <- list(a=c(.1,.1),b=c(.1,0),c=c(0,.1),d=c(0,0))
+
+insti <- list(both=c(.1,.1),seg=c(.1,0),tax=c(0,.1),none=c(0,0))
+
 ks <- seq(.01,.5,length.out=6)
 
 seeds <- sample(1:1e6,200)  
@@ -112,19 +129,19 @@ for( i in  names(insti)){
  })
   allresSE[[i]] <- testk
 }
+```
 
- ks <- seq(.01,.5,length.out=10)
+know we got the results lets combine and see thame
+
+
+```{r plotKS}
 plot(ks,rep(1,length(ks)),ylim=c(0,1),type="n")
 
-allresSC=allres[[1]]
-names(allresSC)=c("both","s","t","none")
-allresSE=allres[[2]]
-names(allresSE)=c("both","s","t","none")
 par(mfrow=c(1,2))
 plot(ks,rep(1,length(ks)),type="n",ylim=c(0,max(unlist(allresSC),na.rm=T)))
 for( i in 1:4) lines(ks,apply(allresSC[[i]],2,mean,na.rm=T),col="orange",lty=i,lwd=3)
 plot(ks,rep(1,length(ks)),type="n",ylim=c(0,max(unlist(allresSE),na.rm=T)))
 for( i in 1:4) lines(ks,apply(allresSE[[i]],2,mean,na.rm=T),col="#008080",lty=i,lwd=3)
-legend("topleft",legend=c("both","s","t","none"),lty=1:4,lwd=2,title="institutions")
+legend("topleft",legend=names(insti),lty=1:4,lwd=2,title="institutions")
 ```
 
